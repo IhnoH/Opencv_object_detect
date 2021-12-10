@@ -4,6 +4,8 @@ import glob
 import pickle
 import os
 import time
+import math
+
 
 criteria = (cv.TERM_CRITERIA_EPS + cv.TERM_CRITERIA_MAX_ITER, 30, 0.001)
 wc = 7  # 체스 보드 가로 패턴 개수 - 1
@@ -25,6 +27,8 @@ cordi_x = -1
 px_per_mm = ()
 
 thres = 0
+
+
 
 
 '''
@@ -223,39 +227,111 @@ def a4_init(src):
     #thres += 2
     dst = edge_detection(gray, 1500, 500, 20)
 
+    src_ = src.copy()
 
     contours, _ = cv.findContours(dst.copy(), cv.RETR_LIST, cv.CHAIN_APPROX_SIMPLE)
     cv.imshow('a4 edge', dst)
 
-    approx = contour_estimate(src, contours)
-
+    approx = contour_estimate(src_, contours)
     #print(thres, len(approx))
 
     #if thres > 255: thres = 0
 
 
-    a4 = np.zeros((4, 2), dtype=np.float32)
-    a4_ = []
+    a4 = []
+    a4_list = []
+    rate = []
+    a4_rate = []
+    shape_rate = []
+    approx = np.array(list(filter(lambda x: len(x) == 4, approx)))
+    #print('approx shape:', np.shape(approx))
+    if len(approx) == 0: return
 
-    
+    for cnt in approx:
+        for p in cnt:
+            cv.circle(src, (p[0][0], p[0][1]), 3, (0, 255, 255), -1)
 
 
+    for cordi in approx:
+        # dots type (n, 4)
+        dots = np.array(list((map(lambda a: a[0], cordi))))
+        #print(dots)
+        abs_distance = []
+        for i in range(len(dots)):
+            x = abs(dots[i%4][0] - dots[(i+1)%4][0])
+            y = abs(dots[i%4][1] - dots[(i+1)%4][1])
+            #print(x, y, math.sqrt(x**2 + y**2))
 
-    #print(a4_)
+            # 네 점마다의 거리와 가로세로 비율
+            abs_distance.append([x, y, math.sqrt(x**2 + y**2)])
+        #print('abs_distance', abs_distance)
+
+        if len(abs_distance) == 4:
+
+            # a4 대비 가로 세로 비율
+            r1 = min(abs_distance[0][2], abs_distance[3][2]) / max(abs_distance[0][2], abs_distance[3][2])
+            r2 = min(abs_distance[1][2], abs_distance[2][2]) / max(abs_distance[1][2], abs_distance[2][2])
+
+            shape_rate.append(abs(r1 - r2))
+            a4_rate.append(abs(np.mean([r1, r2]) - 0.70707070707))
+            rate.append(a4_rate[-1] + shape_rate[-1])
+
+    print('a4_rate:', a4_rate)
+    print('shape_rate:', shape_rate)
+    print('rate:', rate)
+    #print('approx:', approx)
+    print(len(shape_rate), len(a4_rate), len(approx))
+
+    result = np.array([])
+
+    if len(approx) > 0:
+        for dot in approx:
+            #print(a4_rate.index(min(a4_rate)), shape_rate.index(min(shape_rate)))
+
+            #a4 = approx[a4_rate.index(min(a4_rate))]
+
+            #dot = approx[a4_rate.index(min(a4_rate))]
+            dot = np.array(list(map(lambda x:x[0], dot)))
+            result = affin(src, dot)
+
+            if str(type(result)) == "<class 'NoneType'>" : break
+            elif len(result) == 0: break
+
+            x, y = np.shape(result)[0], np.shape(result)[1]
+            print('{}, {}:'.format(x, y), min(x, y)/max(x, y))
+            a4_list.append(abs(min(x, y)/max(x, y) - 0.70707070707))
+            a4.append(dot)
+
+        print(a4_list)
+        if len(a4_list) == 0: return
+        for xy in a4[a4_list.index(min(a4_list))]:
+            cv.circle(src, tuple(xy), 5, (255, 0, 255), 2, cv.LINE_AA)
+        if str(type(result)) != "<class 'NoneType'>":
+            cv.imshow('affin', result)
     cv.imshow('src', src)
 
-    if len(approx) == 4:
+
+    '''
+
+        global px_per_mm
+        px_per_mm = [297/width, 210/height]
+        return result
+    #cv.imshow('a4 init', src)
+    '''
 
 
-        sm = a4.sum(axis=1)
-        diff = np.diff(a4, axis=1)
+def affin(src, dot):
+    if len(dot) == 4:
 
-        #print(sm, diff)
+        sm = dot.sum(axis=1)
+        diff = np.diff(dot, axis=1)
 
-        topLeft = a4[np.argmin(sm)]     # x+y가 가장 작은 값이 좌상단 좌표
-        bottomRight = a4[np.argmax(sm)]  # x+y가 가장 큰 값이 우하단 좌표
-        topRight = a4[np.argmin(diff)]  # x-y가 가장 작은 것이 우상단 좌표
-        bottomLeft = a4[np.argmax(diff)]    # x-y가 가장 큰 값이 좌하단 좌표
+        # print(sm, diff)
+
+        topLeft = dot[np.argmin(sm)]  # x+y가 가장 작은 값이 좌상단 좌표
+        bottomRight = dot[np.argmax(sm)]  # x+y가 가장 큰 값이 우하단 좌표
+        topRight = dot[np.argmin(diff)]  # x-y가 가장 작은 것이 우상단 좌표
+        bottomLeft = dot[np.argmax(diff)]  # x-y가 가장 큰 값이 좌하단 좌표
 
         pts1 = np.float32([topLeft, topRight, bottomRight, bottomLeft])
 
@@ -263,16 +339,17 @@ def a4_init(src):
         w2 = abs(topRight[0] - topLeft[0])
         h1 = abs(topRight[1] - bottomRight[1])
         h2 = abs(topLeft[1] - bottomLeft[1])
-        width = int(max([w1, w2]))   # 두 좌우 거리간의 최대값이 서류의 폭
+        width = int(max([w1, w2]))  # 두 좌우 거리간의 최대값이 서류의 폭
         height = int(max([h1, h2]))  # 두 상하 거리간의 최대값이 서류의 높이
 
-        if not width or not height: return
+        if not width or not height:
+            return
         elif width < height:
             width, height = height, width
 
-        #print(width, height, width/height)
+        # print(width, height, width/height)
 
-        #print(width, height)
+        # print(width, height)
 
         pts2 = np.float32([[0, 0], [width - 1, 0], [width - 1, height - 1], [0, height - 1]])
 
@@ -281,14 +358,10 @@ def a4_init(src):
 
         # 원근 변환 적용
         result = cv.warpPerspective(src, mtrx, (width, height))
-        result = cv.resize(result, dsize=(297*2, 210*2), interpolation=cv.INTER_AREA)
-        cv.imshow('scanned', result)
-
-
-        global px_per_mm
-        px_per_mm = [297/width, 210/height]
+        #print(height/width)
+        #result = cv.resize(result, dsize=(297, 210), interpolation=cv.INTER_AREA)
+        #cv.imshow('scanned', result)
         return result
-    #cv.imshow('a4 init', src)
 
 
 if __name__ == '__main__':
