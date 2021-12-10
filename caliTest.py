@@ -153,7 +153,7 @@ def edge_detection(gray, th1, th2, e):
     #gray = cv.bilateralFilter(gray, 9, sigmaColor=75, sigmaSpace=75)
     #gray = cv.edgePreservingFilter(gray, flags=1, sigma_s=60, sigma_r=0.05)
 
-    cv.imshow('blur', gray)
+    #cv.imshow('blur', gray)
 
     gray = cv.Canny(gray, th1, th2, apertureSize=5, L2gradient=True)
 
@@ -230,7 +230,7 @@ def a4_init(src):
     src_ = src.copy()
 
     contours, _ = cv.findContours(dst.copy(), cv.RETR_LIST, cv.CHAIN_APPROX_SIMPLE)
-    cv.imshow('a4 edge', dst)
+    #cv.imshow('a4 edge', dst)
 
     approx = contour_estimate(src_, contours)
     #print(thres, len(approx))
@@ -247,11 +247,7 @@ def a4_init(src):
     #print('approx shape:', np.shape(approx))
     if len(approx) == 0: return
 
-    for cnt in approx:
-        for p in cnt:
-            cv.circle(src, (p[0][0], p[0][1]), 3, (0, 255, 255), -1)
-
-
+    '''
     for cordi in approx:
         # dots type (n, 4)
         dots = np.array(list((map(lambda a: a[0], cordi))))
@@ -276,40 +272,60 @@ def a4_init(src):
             a4_rate.append(abs(np.mean([r1, r2]) - 0.70707070707))
             rate.append(a4_rate[-1] + shape_rate[-1])
 
+
+
+
+    print(len(shape_rate), len(a4_rate), len(approx))
     print('a4_rate:', a4_rate)
     print('shape_rate:', shape_rate)
     print('rate:', rate)
     #print('approx:', approx)
     print(len(shape_rate), len(a4_rate), len(approx))
+    '''
+
+    src_ = src.copy()
 
     result = np.array([])
-
+    re_ = []
     if len(approx) > 0:
-        for dot in approx:
+        for i, dot in enumerate(approx):
             #print(a4_rate.index(min(a4_rate)), shape_rate.index(min(shape_rate)))
 
             #a4 = approx[a4_rate.index(min(a4_rate))]
-
             #dot = approx[a4_rate.index(min(a4_rate))]
+
             dot = np.array(list(map(lambda x:x[0], dot)))
             result = affin(src, dot)
 
             if str(type(result)) == "<class 'NoneType'>" : break
             elif len(result) == 0: break
+            re_.append(result)
 
             x, y = np.shape(result)[0], np.shape(result)[1]
-            print('{}, {}:'.format(x, y), min(x, y)/max(x, y))
-            a4_list.append(abs(min(x, y)/max(x, y) - 0.70707070707))
+            #print('{}, {}:'.format(x, y), min(x, y)/max(x, y))
             a4.append(dot)
+            a4_list.append(abs(min(x, y)/max(x, y) - 0.70707070707070707070707070707071))
 
-        print(a4_list)
+            print(x, y, a4_list[i])
+
+            cv.putText(src, '{} {} {}'.format(x, y, round(a4_list[i], 4)), (dot[0][0], dot[0][1]), cv.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 1)
+            for p in dot:
+                cv.circle(src, (p[0], p[1]), 1, (0, 255, 255), -1)
+
         if len(a4_list) == 0: return
-        for xy in a4[a4_list.index(min(a4_list))]:
-            cv.circle(src, tuple(xy), 5, (255, 0, 255), 2, cv.LINE_AA)
-        if str(type(result)) != "<class 'NoneType'>":
-            cv.imshow('affin', result)
-    cv.imshow('src', src)
 
+        for xy in a4[a4_list.index(min(a4_list))]: cv.circle(src, tuple(xy), 5, (255, 0, 255), 2, cv.LINE_AA)
+        print()
+
+    # 오름차순으로 정렬 후 하위 3개 중 택
+    for i, r in enumerate(re_):
+
+        r = cv.resize(r, dsize=(297, 210), interpolation=cv.INTER_AREA)
+        #print(i, a4_list[i])
+        cv.imshow('result {}'.format(i), r)
+        cv.imwrite('result {}.jpg'.format(i), r)
+    cv.imshow('src', src)
+    cv.imwrite('src.jpg', src)
 
     '''
 
@@ -342,10 +358,8 @@ def affin(src, dot):
         width = int(max([w1, w2]))  # 두 좌우 거리간의 최대값이 서류의 폭
         height = int(max([h1, h2]))  # 두 상하 거리간의 최대값이 서류의 높이
 
-        if not width or not height:
-            return
-        elif width < height:
-            width, height = height, width
+        if not width or not height: return
+        elif width < height: width, height = height, width
 
         # print(width, height, width/height)
 
@@ -386,7 +400,7 @@ if __name__ == '__main__':
 
             edge = edge_detection(gray, 1500, 500, 143)
 
-            cv.imshow('edge', edge)
+            #cv.imshow('edge', edge)
 
             ''' 
             e -= 5

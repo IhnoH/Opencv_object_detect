@@ -153,7 +153,7 @@ def edge_detection(gray, th1, th2, e):
     #gray = cv.bilateralFilter(gray, 9, sigmaColor=75, sigmaSpace=75)
     #gray = cv.edgePreservingFilter(gray, flags=1, sigma_s=60, sigma_r=0.05)
 
-    cv.imshow('blur', gray)
+    #cv.imshow('blur', gray)
 
     gray = cv.Canny(gray, th1, th2, apertureSize=5, L2gradient=True)
 
@@ -275,13 +275,13 @@ def a4_init(src):
             shape_rate.append(abs(r1 - r2))
             a4_rate.append(abs(np.mean([r1, r2]) - 0.70707070707))
             rate.append(a4_rate[-1] + shape_rate[-1])
-
+    '''
     print('a4_rate:', a4_rate)
     print('shape_rate:', shape_rate)
     print('rate:', rate)
     #print('approx:', approx)
     print(len(shape_rate), len(a4_rate), len(approx))
-
+    '''
     result = np.array([])
 
     if len(approx) > 0:
@@ -294,20 +294,19 @@ def a4_init(src):
             dot = np.array(list(map(lambda x:x[0], dot)))
             result = affin(src, dot)
 
+
             if str(type(result)) == "<class 'NoneType'>" : break
             elif len(result) == 0: break
 
             x, y = np.shape(result)[0], np.shape(result)[1]
-            print('{}, {}:'.format(x, y), min(x, y)/max(x, y))
+            #print('{}, {}:'.format(x, y), min(x, y)/max(x, y))
             a4_list.append(abs(min(x, y)/max(x, y) - 0.70707070707))
             a4.append(dot)
 
         print(a4_list)
         if len(a4_list) == 0: return
-        for xy in a4[a4_list.index(min(a4_list))]:
-            cv.circle(src, tuple(xy), 5, (255, 0, 255), 2, cv.LINE_AA)
-        if str(type(result)) != "<class 'NoneType'>":
-            cv.imshow('affin', result)
+        for xy in a4[a4_list.index(min(a4_list))]: cv.circle(src, tuple(xy), 5, (255, 0, 255), 2, cv.LINE_AA)
+        if str(type(result)) != "<class 'NoneType'>": cv.imshow('affin', result)
     cv.imshow('src', src)
 
 
@@ -342,10 +341,9 @@ def affin(src, dot):
         width = int(max([w1, w2]))  # 두 좌우 거리간의 최대값이 서류의 폭
         height = int(max([h1, h2]))  # 두 상하 거리간의 최대값이 서류의 높이
 
-        if not width or not height:
-            return
-        elif width < height:
-            width, height = height, width
+        if not width or not height: return
+
+        # elif width < height: width, height = height, width
 
         # print(width, height, width/height)
 
@@ -386,7 +384,7 @@ if __name__ == '__main__':
 
             edge = edge_detection(gray, 1500, 500, 143)
 
-            cv.imshow('edge', edge)
+            #cv.imshow('edge', edge)
 
             ''' 
             e -= 5
