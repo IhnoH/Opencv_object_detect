@@ -292,7 +292,8 @@ def a4_init(src):
             #dot = approx[a4_rate.index(min(a4_rate))]
 
             dot = np.array(list(map(lambda x:x[0], dot)))
-            result = affin(src, dot)
+            #print(dot)
+            result = perspective(src, dot)
 
             if str(type(result)) == "<class 'NoneType'>" : break
             elif len(result) == 0: break
@@ -305,9 +306,8 @@ def a4_init(src):
 
             #print(x, y, a4_list[i])    # result 해상도
 
-            cv.putText(src, '{} {} {}, {} {}'.format(x, y, round(a4_list[i], 3),  round(a4_rate[i], 3),  round(shape_rate[i], 3)), (dot[0][0], dot[0][1]), cv.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 1)
-            for p in dot:
-                cv.circle(src, (p[0], p[1]), 1, (0, 255, 255), -1)
+            cv.putText(src, '{0} {1} {2}'.format(x, y, round(shape_rate[i], 3)), (dot[0][0], dot[0][1]), cv.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 1)
+            for p in dot: cv.circle(src, (p[0], p[1]), 2, (0, 255, 255), -1)   # 검은색 점
 
         #print(len(shape_rate), len(a4_rate), len(approx), len(a4))
         #print(min(a4_rate), a4_rate.index(min(a4_rate)))
@@ -317,6 +317,10 @@ def a4_init(src):
             cv.circle(src, tuple(xy), 5, (255, 0, 255), 2, cv.LINE_AA)
 
         print()
+
+    global px_per_mm
+    #px_per_mm = [297 / max(np.shape(re_[0])[0], np.shape(re_[0])[1]), 210 / min((re_[0])[0], np.shape(re_[0])[1])]
+
 
     # 오름차순으로 정렬 후 하위 3개 중 택
     for i, r in enumerate(re_):
@@ -337,7 +341,7 @@ def a4_init(src):
     '''
 
 
-def affin(src, dot):
+def perspective(src, dot):
     if len(dot) == 4:
 
         sm = dot.sum(axis=1)
@@ -351,11 +355,11 @@ def affin(src, dot):
         bottomLeft = dot[np.argmax(diff)]  # x-y가 가장 큰 값이 좌하단 좌표
 
         pts1 = np.float32([topLeft, topRight, bottomRight, bottomLeft])
-
         w1 = abs(bottomRight[0] - bottomLeft[0])
         w2 = abs(topRight[0] - topLeft[0])
         h1 = abs(topRight[1] - bottomRight[1])
         h2 = abs(topLeft[1] - bottomLeft[1])
+
         width = int(max([w1, w2]))  # 두 좌우 거리간의 최대값이 서류의 폭
         height = int(max([h1, h2]))  # 두 상하 거리간의 최대값이 서류의 높이
 
@@ -372,7 +376,7 @@ def affin(src, dot):
 
         # 원근 변환 적용
         result = cv.warpPerspective(src, mtrx, (width, height))
-        #print(height/width)
+        #print(height, width)
         #result = cv.resize(result, dsize=(297, 210), interpolation=cv.INTER_AREA)
         #cv.imshow('scanned', result)
         return result
