@@ -223,69 +223,66 @@ def line_detection(img, gray):
 def a4_init(src):
     global thres
     approx = []
-    #while len(approx) < 4:
     #thres += 2
     dst = edge_detection(gray, 1500, 500, 20)
 
     src_ = src.copy()
 
     contours, _ = cv.findContours(dst.copy(), cv.RETR_LIST, cv.CHAIN_APPROX_SIMPLE)
-    #cv.imshow('a4 edge', dst)
-
     approx = contour_estimate(src_, contours)
+
+    cv.imshow('a4 edge', dst)
     #print(thres, len(approx))
 
     #if thres > 255: thres = 0
-
 
     a4 = []
     a4_list = []
     rate = []
     a4_rate = []
     shape_rate = []
-    approx = np.array(list(filter(lambda x: len(x) == 4, approx)))
-    #print('approx shape:', np.shape(approx))
+
+    approx = np.array(list(filter(lambda x: len(x) == 4, approx)))  # only square
     if len(approx) == 0: return
 
-    '''
+    #'''
     for cordi in approx:
-        # dots type (n, 4)
-        dots = np.array(list((map(lambda a: a[0], cordi))))
-        #print(dots)
+        dots = np.array(list((map(lambda a: a[0], cordi)))) # dots shape (n, 4)
         abs_distance = []
-        for i in range(len(dots)):
+
+        #print(dots)
+        for i in range(4):
             x = abs(dots[i%4][0] - dots[(i+1)%4][0])
             y = abs(dots[i%4][1] - dots[(i+1)%4][1])
             #print(x, y, math.sqrt(x**2 + y**2))
 
             # 네 점마다의 거리와 가로세로 비율
             abs_distance.append([x, y, math.sqrt(x**2 + y**2)])
+
         #print('abs_distance', abs_distance)
 
         if len(abs_distance) == 4:
 
             # a4 대비 가로 세로 비율
+            r1 = max(abs_distance[0][2], abs_distance[3][2]) - min(abs_distance[0][2], abs_distance[3][2])
+            r2 = max(abs_distance[1][2], abs_distance[2][2]) - min(abs_distance[1][2], abs_distance[2][2])
+
+            shape_rate.append(abs(r1 + r2))
+
             r1 = min(abs_distance[0][2], abs_distance[3][2]) / max(abs_distance[0][2], abs_distance[3][2])
             r2 = min(abs_distance[1][2], abs_distance[2][2]) / max(abs_distance[1][2], abs_distance[2][2])
 
-            shape_rate.append(abs(r1 - r2))
             a4_rate.append(abs(np.mean([r1, r2]) - 0.70707070707))
             rate.append(a4_rate[-1] + shape_rate[-1])
 
+    approx = list(approx)
+    #print(len(shape_rate), len(a4_rate), len(approx))
 
+    idx = shape_rate.index(max(shape_rate))
+    shape_rate = [shape_rate[idx]]
+    a4_rate = [a4_rate[idx]]
+    approx = [approx[idx]]
 
-
-    print(len(shape_rate), len(a4_rate), len(approx))
-    print('a4_rate:', a4_rate)
-    print('shape_rate:', shape_rate)
-    print('rate:', rate)
-    #print('approx:', approx)
-    print(len(shape_rate), len(a4_rate), len(approx))
-    '''
-
-    src_ = src.copy()
-
-    result = np.array([])
     re_ = []
     if len(approx) > 0:
         for i, dot in enumerate(approx):
@@ -306,21 +303,25 @@ def a4_init(src):
             a4.append(dot)
             a4_list.append(abs(min(x, y)/max(x, y) - 0.70707070707070707070707070707071))
 
-            print(x, y, a4_list[i])
+            #print(x, y, a4_list[i])    # result 해상도
 
-            cv.putText(src, '{} {} {}'.format(x, y, round(a4_list[i], 4)), (dot[0][0], dot[0][1]), cv.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 1)
+            cv.putText(src, '{} {} {}, {} {}'.format(x, y, round(a4_list[i], 3),  round(a4_rate[i], 3),  round(shape_rate[i], 3)), (dot[0][0], dot[0][1]), cv.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 1)
             for p in dot:
                 cv.circle(src, (p[0], p[1]), 1, (0, 255, 255), -1)
 
-        if len(a4_list) == 0: return
+        #print(len(shape_rate), len(a4_rate), len(approx), len(a4))
+        #print(min(a4_rate), a4_rate.index(min(a4_rate)))
 
-        for xy in a4[a4_list.index(min(a4_list))]: cv.circle(src, tuple(xy), 5, (255, 0, 255), 2, cv.LINE_AA)
+        if len(a4) == 0: return
+        for xy in a4[a4_rate.index(min(a4_rate))]:
+            cv.circle(src, tuple(xy), 5, (255, 0, 255), 2, cv.LINE_AA)
+
         print()
 
     # 오름차순으로 정렬 후 하위 3개 중 택
     for i, r in enumerate(re_):
 
-        r = cv.resize(r, dsize=(297, 210), interpolation=cv.INTER_AREA)
+        #r = cv.resize(r, dsize=(210, 297), interpolation=cv.INTER_AREA)
         #print(i, a4_list[i])
         cv.imshow('result {}'.format(i), r)
         cv.imwrite('result {}.jpg'.format(i), r)
@@ -359,10 +360,9 @@ def affin(src, dot):
         height = int(max([h1, h2]))  # 두 상하 거리간의 최대값이 서류의 높이
 
         if not width or not height: return
-        elif width < height: width, height = height, width
+        #elif width < height: width, height = height, width
 
         # print(width, height, width/height)
-
         # print(width, height)
 
         pts2 = np.float32([[0, 0], [width - 1, 0], [width - 1, height - 1], [0, height - 1]])
@@ -391,7 +391,7 @@ if __name__ == '__main__':
         ret, frame = capture.read()
         if existFile('param.pckl') and existFile('newcameramtx.pckl'):
             cali = loadCalib(frame)  # cali color
-            cv.imwrite('cali.jpg', cali)
+            #cv.imwrite('cali.jpg', cali)
             gray = cv.cvtColor(cali, cv.COLOR_BGR2GRAY)
 
             dst = a4_init(gray)

@@ -7,6 +7,7 @@ import glob
 import math
 
 
-r = None
-print(type(r))
-print(str(type(r)) == "<class 'NoneType'>")
+r = np.array([[1, 2, 3], [4, 5, 6]])
+r = list(r)
+del r[1]
+print(r)
